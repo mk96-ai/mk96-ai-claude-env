@@ -13,9 +13,14 @@ Context:
 - Status: !`git status --short`
 
 Steps:
-1. Follow the naming style of the existing branches (prefixes such as `feature/`, `fix/`, separators, language). Use lowercase words separated by hyphens if there is no clear style.
+1. Naming: if the existing branches follow their own style, follow it. Otherwise use the Git Flow convention from the git rules:
+   - `feature/<name>` (new functionality) or `bugfix/<name>` (fix for unreleased code): base `develop`.
+   - `release/X.Y.Z`: base `develop`.
+   - `hotfix/<name>` or `hotfix/X.Y.Z` (urgent fix of released code): base `main`.
+   - `<name>` is a task id, a lowercase kebab-case description or both: `1234`, `PROJ-123`, `discount-validation`, `PROJ-123-discount-validation`. If the user gave a task number, use it.
+   If the type is not clear from the request, ask.
 2. If the name already exists locally or on the remote, stop and tell the user.
-3. Base the branch on the current one unless the user named another base. State which base was used.
+3. Base: the one the user named; otherwise the Git Flow base above (`develop` must exist; if it does not, say so and ask). In repos with their own style, base on the current branch. State which base was used.
 4. If there are uncommitted changes, mention that they come along to the new branch.
 5. Create it with `git switch -c` and confirm in one line.
 

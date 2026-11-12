@@ -10,9 +10,9 @@ Context:
 - Status: !`git status --short --branch`
 
 Steps:
-1. If the branch is `main` or `master`, stop and tell the user a PR needs a feature branch.
+1. If the branch is `main`, `master` or `develop`, stop and tell the user a PR needs a topic branch.
 2. If there are uncommitted changes, mention it and ask whether to continue without them.
-3. Find the base branch (usually the repository default) and review all commits and the full diff between base and HEAD, not only the last commit.
+3. Base branch: the one the user named; otherwise, by Git Flow prefix: `feature/` and `bugfix/` → `develop`; `release/` and `hotfix/` → `main`, and tell the user it must also be merged back into `develop` afterwards. Other branches → the repository default. Review all commits and the full diff between base and HEAD, not only the last commit.
 4. If the branch is not on the remote yet, push it (`git push -u origin <branch>`). Never force push.
 5. Write the PR in English:
    - Title: short, focused on the result.
