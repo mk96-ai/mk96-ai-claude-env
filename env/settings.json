@@ -1,5 +1,34 @@
 {
   "format": 1,
+  "model": "opus",
   "autoMemoryEnabled": false,
-  "model": "opus"
+  "hooks": [
+    {
+      "event": "PreToolUse",
+      "hook": {
+        "command": "\"$HOME/.claude/hooks/git-guard/git-guard.sh\"",
+        "timeout": 10,
+        "type": "command"
+      },
+      "matcher": "Bash"
+    }
+  ],
+  "permissions.deny": [
+    "Edit(//**/Cargo.lock)",
+    "Edit(//**/Gemfile.lock)",
+    "Edit(//**/composer.lock)",
+    "Edit(//**/go.sum)",
+    "Edit(//**/package-lock.json)",
+    "Edit(//**/pnpm-lock.yaml)",
+    "Edit(//**/poetry.lock)",
+    "Edit(//**/uv.lock)",
+    "Edit(//**/yarn.lock)",
+    "Read(//**/.env)",
+    "Read(//**/.env.*.local)",
+    "Read(//**/.env.development)",
+    "Read(//**/.env.local)",
+    "Read(//**/.env.production)",
+    "Read(//**/.env.staging)",
+    "Read(//**/.env.test)"
+  ]
 }
