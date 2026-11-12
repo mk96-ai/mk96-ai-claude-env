@@ -1,0 +1,5 @@
+{
+  "name": "command-index",
+  "version": "0.2.0",
+  "description": "Opens a panel with your slash commands grouped by prefix; Esc closes it"
+}
