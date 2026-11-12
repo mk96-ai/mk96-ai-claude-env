@@ -12,7 +12,7 @@ paths:
 Pure Java, on top of `coding.md`. Framework and architecture come from skills.
 
 ## Framework
-- Use the framework the project's `CLAUDE.md` names (skills: `java-spring`, `java-quarkus`, `java-desktop-javafx`; plus `api-rest`, `messaging`, `java-reactor` when the project uses them).
+- Use the framework the project's `CLAUDE.md` names (skills: `java-spring`, `java-quarkus`, `java-desktop-javafx`; plus `java-jpa`, `api-rest`, `messaging` (with `messaging-kafka` / `messaging-rabbitmq`), `java-reactor` when the project uses them).
 - New project or unclear: ask (Spring Boot, Quarkus, JavaFX, plain Java). Never pick one silently.
 
 ## Naming

@@ -23,12 +23,11 @@ Applies to any architecture: layout and naming come from the architecture skill.
 - Secrets from environment variables or a secret store, never in YAML.
 
 ## Persistence
-- `spring.jpa.open-in-view=false`; load what the caller needs inside the transaction.
-- `ddl-auto` set to `validate` or `none`; schema changes only through Flyway/Liquibase migrations.
-- `@Transactional` on the service/use case, `readOnly = true` for queries; no remote calls inside transactions.
-- Associations `LAZY`; fix N+1 with `@EntityGraph` or fetch joins; projections for read models.
-- Bound parameters only (derived queries, `@Query` with `:param`, `NamedParameterJdbcTemplate`).
-- Paginate unbounded reads in repositories (`Pageable`), without leaking Spring Data types into the domain.
+Entities, fetching, transactions and migrations: `java-jpa`. Spring-specific:
+- `spring.jpa.open-in-view=false` (Boot enables it by default) and `spring.jpa.hibernate.ddl-auto=validate` or `none`.
+- `@Transactional` on the service/use case, `readOnly = true` for queries.
+- Spring Data repositories: `@EntityGraph` or `@Query` with `join fetch` against N+1, interface/record projections for read models, `:param` bound parameters.
+- `Pageable` for unbounded reads, without leaking Spring Data types into the domain.
 
 ## Observability
 - Expose only needed endpoints (`health,info,prometheus`); separate `management.server.port` when the app is public.
@@ -54,7 +53,6 @@ Applies to any architecture: layout and naming come from the architecture skill.
 |---|---|
 | Lazy loading in the controller/serializer | `open-in-view=false`, fetch in the transaction |
 | `@Transactional` on a self-called or private method | Public method on another bean |
-| `ddl-auto=update` in production | Migrations + `validate` |
 | Ids as metric tags | Bounded tags; ids in traces/logs |
 | `exposure.include=*` in production | Explicit list, separate port |
 | Client without timeouts | Explicit connect/read timeouts |

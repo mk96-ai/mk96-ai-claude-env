@@ -1,64 +1,57 @@
 ---
 name: messaging
-description: Use when producing or consuming messages with Kafka or RabbitMQ (Spring Kafka, Spring AMQP, Spring Cloud Stream, Quarkus Reactive Messaging), including listeners, retries, dead-letter queues, duplicates, ordering, consumer lag and outbox.
+description: Use when producing or consuming asynchronous messages or events through any broker (Kafka, RabbitMQ or others), including event and payload design, publishing after a database write, transactional outbox, duplicates, idempotent consumers, retries, dead-letter queues, ordering, replay and message contract tests.
 ---
 
-# Messaging (Kafka / RabbitMQ)
+# Messaging
 
-Architecture-neutral. In hexagonal projects, listeners are driving adapters that call an inbound port; publishers are driven adapters behind an outbound port.
+## Overview
+Delivery is at-least-once: design for loss, duplicates and reordering. Broker specifics: `messaging-kafka`, `messaging-rabbitmq`. Hexagonal: listeners are driving adapters, publishers sit behind an outbound port.
 
 ## Message design
-- Key = aggregate id. Ordering exists only per Kafka partition, or per queue with a single consumer.
-- Payload is a versioned DTO (record), never a JPA entity. Only backward-compatible changes (add optional fields); a breaking change gets a new type or topic. Use the schema registry (Avro/Protobuf/JSON Schema) when there is one.
-- Headers: `messageId` (UUID), `type`, `occurredAt`, `correlationId`, trace context. CloudEvents (`id`, `source`, `type`, `specversion`) is a good envelope across teams.
-- Events named in the past tense (`OrderPlaced`). Small messages: send a reference when the payload is large.
+- Events in the past tense (`OrderPlaced`); commands imperative, one owner.
+- Payload is a versioned DTO (record), never a persistence entity. Only backward-compatible changes; breaking ones get a new type or destination.
+- Metadata in headers: `messageId` (UUID), `type`, `occurredAt`, `correlationId`, trace context. CloudEvents is a good envelope across teams.
+- Key or routing key = aggregate id when per-entity order matters.
+- Large payloads: send a reference (claim check).
 
 ## Producing
-- Kafka: `acks=all` and `enable.idempotence=true` (default since Kafka 3.0; don't override). Handle the send result, never fire-and-forget.
-- RabbitMQ: publisher confirms + `mandatory`/returns; persistent messages on durable queues.
-- DB write + publish is not atomic. If losing the event matters, use a **transactional outbox**; otherwise publish with `@TransactionalEventListener(phase = AFTER_COMMIT)`.
+- Never publish inside the database transaction: rollback leaves a phantom event, a crash loses it.
+- Loss is unacceptable → **transactional outbox**: store the event in the same transaction; a relay (polling or CDC, e.g. Debezium) publishes it.
+- Loss is acceptable → publish after commit: Spring `@TransactionalEventListener(phase = AFTER_COMMIT)`, CDI `@Observes(during = TransactionPhase.AFTER_SUCCESS)`.
+- Wait for the broker acknowledgement and handle failure; never fire-and-forget.
 
 ## Consuming
-- Delivery is at-least-once: handlers are **idempotent** (dedupe on `messageId` or natural upsert).
-- Ack/commit only after processing succeeds; manual ack only when processing is async.
-- Retry transient errors with exponential backoff and a cap. Validation and deserialization errors go straight to the DLQ/DLT, no retries.
-- Every consumer has a DLQ/DLT, an owner and a replay procedure. Never drop or requeue forever.
-- Concurrency at most the number of partitions; parallel consumers on one queue lose ordering.
-- Never catch and swallow exceptions in a listener: let the error handler see them.
+- Idempotent handlers: dedupe on `messageId` (processed-ids table in the effect's transaction) or natural upsert.
+- Acknowledge only after the work and its commit succeeded.
+- Tolerate reordering: ignore messages older than the stored version.
+- Never swallow exceptions in a listener: the error handler decides.
 
-## Kafka
-- `DefaultErrorHandler` + `DeadLetterPublishingRecoverer` with an explicit `BackOff` (the default is 10 attempts with no delay). The DLT needs at least as many partitions as the source topic.
-- Wrap deserializers in `ErrorHandlingDeserializer` to stop poison-pill loops.
-- `@RetryableTopic` for non-blocking retries, knowing it breaks ordering.
-- `max.poll.interval.ms` above the worst-case batch time; handlers must survive rebalances.
-- Exactly-once (`transactional.id`, `read_committed`) covers Kafka-to-Kafka only, not your database.
-
-## RabbitMQ
-- Quorum queues by default; they have a `delivery-limit`.
-- DLX on every queue. Spring AMQP: throw `AmqpRejectAndDontRequeueException` or set `defaultRequeueRejected=false`.
-- Set `prefetch` deliberately (start between 10 and 250).
-- Spring Cloud Stream: retry/DLQ through binder properties, not by hand. Quarkus: `@Incoming`/`Emitter`, `failure-strategy=dead-letter-queue`.
+## Retries and dead letters
+- Transient errors (timeout, 5xx, lock): retry with exponential backoff, jitter and a cap.
+- Permanent errors (validation, deserialization, unknown type): dead-letter at once, no retries.
+- Never retry or requeue forever: a poison message blocks or loops.
+- Every consumer has a dead-letter destination with owner, alert and replay procedure; keep original headers and error cause.
+- Retries that move a message aside (retry topics, delay queues) break ordering.
 
 ## Observability
-- Alert on consumer lag / queue depth, DLQ size > 0, retry rate and handler latency.
-- Propagate trace context in headers (Micrometer observation enabled).
-- Log `messageId`, key and topic; never personal data from the payload.
+- Alert on backlog growth (lag, queue depth), dead letters > 0, retry rate, handler latency.
+- Propagate trace context in headers.
+- Log `messageId`, key and destination, never payload personal data; ids never as metric tags.
 
 ## Testing
-- Integration tests with Testcontainers (`@ServiceConnection`, pinned image); `@EmbeddedKafka` only for fast Kafka tests.
-- Wait with Awaitility, never `Thread.sleep`.
-- Test duplicates, a poison message reaching the DLQ, and the retry path.
-- The message schema is a contract: compatibility check in CI (registry or consumer-driven contract).
+- Integration tests against a real broker (Testcontainers, pinned image); wait with Awaitility, never `Thread.sleep`.
+- Cover duplicates, a poison message reaching the dead letter, retries and the outbox relay.
+- Schema compatibility check in CI (registry or consumer-driven contracts).
 
 ## Common mistakes
 | Mistake | Fix |
 |---|---|
-| Publishing inside the DB transaction | Outbox or AFTER_COMMIT |
+| Publishing inside the DB transaction | Outbox or after-commit |
 | Non-idempotent handler | Dedupe on `messageId` |
-| Poison message requeued forever | DLQ/DLT + not-retryable exceptions |
-| Random or missing key | Key = aggregate id |
-| Concurrency > partitions | Match partitions |
+| Ack before the work commits | Ack after success |
+| Poison message retried forever | Classify errors, dead-letter |
 | Entity as payload | Versioned DTO |
-| No alert on the DLQ | Monitor DLQ size |
+| Dead letters nobody watches | Owner, alert, replay |
 
-Sources: spring-kafka and Spring AMQP reference (Apache-2.0), Confluent and RabbitMQ docs, microservices.io transactional outbox, CloudEvents spec, github/awesome-copilot java-springboot references (MIT).
+Sources: microservices.io transactional outbox and idempotent consumer patterns, CloudEvents spec (CNCF, Apache-2.0), RabbitMQ reliability guide, Confluent docs, github/awesome-copilot java-springboot messaging reference (~41k stars, MIT).

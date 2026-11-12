@@ -21,10 +21,10 @@ Applies to any architecture: layout and naming come from the architecture skill.
 - Secrets from environment variables or a secret store.
 
 ## Persistence
+Entities, fetching, transactions and migrations: `java-jpa`. Quarkus-specific:
 - Hibernate ORM with Panache: repositories for non-trivial domains, active record only for simple CRUD; no Panache types in the domain.
-- `@Transactional` on the service/use case for every write; no remote calls inside transactions.
-- `schema-management.strategy` `none` or `validate` in prod; schema via Flyway/Liquibase.
-- Fetch joins or projections against N+1; paginate list queries; bound parameters only.
+- `@Transactional` on the service/use case for every write.
+- `%prod.quarkus.hibernate-orm.schema-management.strategy=none` or `validate`; Dev Services default to `drop-and-create`.
 - Dev Services provide databases and brokers in dev/test: don't set their URLs in `%dev`/`%test`.
 
 ## Threading model

@@ -43,7 +43,8 @@ Layers never mix in one file:
 | Language + its build tool | Java + Maven | rule |
 | Framework | Spring, Quarkus, Angular | skill `<lang>-<framework>` or `<framework>` |
 | Architecture | hexagonal, MVC | skill `arch-<style>` |
-| Protocol / integration | REST, messaging | skill `api-rest`, `messaging` |
+| Protocol / integration | REST, messaging (+ one skill per broker) | skill `api-rest`, `messaging`, `messaging-kafka` |
+| Cross-framework technology | JPA/Hibernate | skill `<lang>-<tech>` (e.g. `java-jpa`) |
 | Platform / UI toolkit | JavaFX, Win32, GTK | skill `<lang>-<platform>` |
 | Domain UX | dashboards, social pages | skill `ux-<domain>` |
 
